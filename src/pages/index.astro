@@ -1,0 +1,143 @@
+---
+import Layout from '../layouts/Layout.astro'
+---
+
+<Layout title='TileSet Preference'>
+  <div
+    id='backdrop'
+    class='h-screen w-screen fixed inset-0 bg-black/70 backdrop-blur-sm p-8 hidden'>
+    <div
+      class='w-full h-full border-white border-4 rounded-lg text-white flex justify-center items-center text-4xl'>
+      ARRASTRA LA IMAGEN
+    </div>
+  </div>
+  <main class='p-4'>
+    <h1 class='text-3xl font-bold text-center mb-4'>TILE_SET PREFERENCE</h1>
+    <img id='tileset' src='/default.png' hidden />
+    <canvas class='[image-rendering:pixelated]' hidden></canvas>
+    <p>
+      Está página está diseñada para que crees tu propio diseño en el nivel
+      mostrado. Al presionar el botón de abajo podrás subir tu TILESET y este
+      remplazará al por defecto.
+    </p>
+    <a href='/template.png' download='plantilla.png' class='mb-4 block'>
+      DESCARGAR PLANTILLA
+    </a>
+    <label class='block mb-2'>
+      SUBIR TILESET:
+      <input
+        type='file'
+        name='image'
+        id='image'
+        accept='image/png, image/jpeg'
+      />
+    </label>
+
+    <button id='reset'>RESTABLECER</button>
+    <div
+      id='view'
+      class='mt-4 w-full h-[calc(100vh-2rem)] bg-no-repeat bg-contain bg-center [image-rendering:pixelated]'>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  a {
+    @apply underline decoration-wavy text-blue-500 hover:text-blue-600 font-bold;
+  }
+  button {
+    @apply border-0 px-2 py-1 rounded-md bg-blue-500 hover:bg-blue-600 text-white;
+  }
+  input[type='file'] {
+    @apply file:mr-2 file:border-0 file:px-2 file:py-1 file:rounded-l-md file:bg-blue-500 file:hover:bg-blue-600 file:text-white bg-blue-100 rounded-r-md hover:bg-blue-200;
+  }
+</style>
+
+<script>
+  import { map, tilesPos, TILES } from '../lib/map'
+
+  const $image = document.querySelector<HTMLImageElement>('img#tileset')!
+  const $backdrop = document.querySelector<HTMLImageElement>('div#backdrop')!
+  const $view = document.querySelector<HTMLImageElement>('div#view')!
+  const $file = document.querySelector<HTMLInputElement>('input#image')!
+  const $reset = document.querySelector<HTMLButtonElement>('button#reset')!
+  const $canvas = document.querySelector('canvas')!
+  const ctx = $canvas.getContext('2d')!
+
+  $canvas.width = 32 * 18 * 2
+  $canvas.height = 32 * 12 * 2
+
+  ctx.scale(2, 2)
+  ctx.imageSmoothingEnabled = false
+
+  $image.addEventListener('load', () => {
+    loadImage($image)
+  })
+  $file.addEventListener('change', () => {
+    if (!$file.files) return
+
+    const [file] = Array.from($file.files)
+    $image.src = URL.createObjectURL(file)
+  })
+
+  window.addEventListener('dragover', (ev) => {
+    ev.preventDefault()
+    $backdrop.style.display = 'block'
+  })
+  window.addEventListener('drop', (ev) => {
+    ev.preventDefault()
+    const { dataTransfer } = ev
+
+    $backdrop.style.display = 'none'
+
+    if (!dataTransfer) return
+    if (!dataTransfer.files) return
+
+    const [file] = Array.from(dataTransfer.files).filter((file) =>
+      file.name.endsWith('.png')
+    )
+
+    if (!file) return
+
+    $image.src = URL.createObjectURL(file)
+  })
+
+  $reset.addEventListener('click', () => {
+    $image.src = '/default.png'
+  })
+
+  loadImage($image)
+
+  function loadImage(image: HTMLImageElement) {
+    ctx.clearRect(0, 0, $canvas.width, $canvas.height)
+    for (let y = 0; y < map.length; y++) {
+      for (let x = 0; x < map[y].length; x++) {
+        const element = map[y][x]
+        ctx.drawImage(
+          image,
+          ...(tilesPos[TILES.BACKGROUND].map((n) => n * 32) as [
+            number,
+            number,
+          ]),
+          32,
+          32,
+          x * 32,
+          y * 32,
+          32,
+          32
+        )
+        ctx.drawImage(
+          image,
+          ...(tilesPos[element].map((n) => n * 32) as [number, number]),
+          32,
+          32,
+          x * 32,
+          y * 32,
+          32,
+          32
+        )
+      }
+    }
+    $view.style.backgroundImage = 'url(' + $canvas.toDataURL() + ')'
+  }
+</script>
